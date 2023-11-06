@@ -19,22 +19,12 @@ struct worker_context {
 void server_callback(NNGMessage *msg, void *ctx)
 {
     log("SERVER CALLBACK");
-    if(msg is null){ 
-        log("No message received");
-        return;
-    }    
-    if(msg.empty){
-        log("Empty message received");
-        return;
-    }
-    log("d1");
+    if(msg is null) return;
     auto cnt = cast(worker_context*)ctx;
-    log("d2");
-    auto s = msg.body_trim!string();
+    auto s = msg.body_trim!string(msg.length);
     log("SERVER CONTEXT NAME: "~cnt.name);
     log("SERVER GOT: " ~ s);
     msg.clear();
-    log("d3");
     if(indexOf(s,"What time is it?") == 0){
         log("Going to send time");
         msg.body_append(cast(ubyte[])format("It`s %f o`clock.",timestamp()));
@@ -104,20 +94,17 @@ int main()
     s.recvtimeout = msecs(1000);
     s.sendbuf = 4096;
 
-    NNGPool pool = NNGPool(&s, &server_callback, 2, &ctx);
-    //NNGPool pool = NNGPool(&s, &server_callback, 8, &ctx);
+    NNGPool pool = NNGPool(&s, &server_callback, 8, &ctx);
     pool.init();
 
     auto rc = s.listen(uri);
-    assert(rc == 0, format("error %d", rc));
+    assert(rc == 0);
 
 
     auto tid02 = spawn(&client_worker, uri, tags[0]);      // client for exact tag
     auto tid03 = spawn(&client_worker, uri, tags[1]);      // ...
-/*
     auto tid04 = spawn(&client_worker, uri, tags[2]);
     auto tid05 = spawn(&client_worker, uri, tags[3]);
-  */
     thread_joinAll();
 
     pool.shutdown();
