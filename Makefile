@@ -1,22 +1,33 @@
 .SUFFIXES:
 .ONESHELL:
-.NOTPARALLEL:
+#.NOTPARALLEL:
 
 # default is ON
 NNG_WITH_MBEDTLS?=ON
 
-DC=dmd
-DCFLAGS=-O -d -m64 -i -debug -g -gf -gs -gx
+DC?=dmd
+
+ifdef DEBUG 
+DCDEBUG+=-debug -g -gf -gs -gx
+endif
+
+ifdef OPTIMIZE
+DCFLAGS+=-O
+endif
+
+DCFLAGS+=$(DCDEBUG)
+#DCFLAGS+=-O -d -m64 -i -debug -g -gf -gs -gx
+DCFLAGS+=-m64
 DINC=nngd extern/libnng/libnng
 
 DTESTS=$(wildcard tests/test*.d)
 
 ifeq ($(NNG_WITH_MBEDTLS),ON)
-	DCFLAGS=-O -d -m64 -i -debug -g -version=withtls
-	DLFLAGS=-Lextern/libnng/extern/nng/build/lib/ -Lextern/libnng/extern/mbedtls/build/lib/ -lnng -lmbedtls -lmbedcrypto -lmbedx509
+	DCFLAGS+=-d -m64 -i -version=withtls
+	DLFLAGS+=-Lextern/libnng/extern/nng/build/lib/ -Lextern/libnng/extern/mbedtls/build/lib/ -lnng -lmbedtls -lmbedcrypto -lmbedx509
 else
-	DCFLAGS=-O -d -m64 -i -debug -g
-	DLFLAGS=-Lextern/libnng/extern/nng/build/lib/ -lnng
+	DCFLAGS+=-d -m64 -i 
+	DLFLAGS+=-Lextern/libnng/extern/nng/build/lib/ -lnng
 endif
 
 

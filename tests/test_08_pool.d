@@ -104,17 +104,20 @@ int main()
     s.recvtimeout = msecs(1000);
     s.sendbuf = 4096;
 
-    NNGPool pool = NNGPool(&s, &server_callback, 8, &ctx);
+    NNGPool pool = NNGPool(&s, &server_callback, 2, &ctx);
+    //NNGPool pool = NNGPool(&s, &server_callback, 8, &ctx);
     pool.init();
 
     auto rc = s.listen(uri);
-    assert(rc == 0);
+    assert(rc == 0, format("error %d", rc));
 
 
     auto tid02 = spawn(&client_worker, uri, tags[0]);      // client for exact tag
     auto tid03 = spawn(&client_worker, uri, tags[1]);      // ...
+/*
     auto tid04 = spawn(&client_worker, uri, tags[2]);
     auto tid05 = spawn(&client_worker, uri, tags[3]);
+  */
     thread_joinAll();
 
     pool.shutdown();

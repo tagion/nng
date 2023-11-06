@@ -12,13 +12,13 @@ proper: proper-$(MMODULES)
 
 $(MMODULES): 
 	@echo "Making "$@ &&\
-	$(MAKE) -C $@/ 
+	$(MAKE) $(MAKEOVERRIDES) -C $@/ 
 
 clean-%:
-	$(MAKE) -C $*/ clean
+	$(MAKE) $(MAKEOVERRIDES) -C $*/ clean
 
 proper-%:
-	$(MAKE) -C $*/ clean
-	$(MAKE) -C $*/ proper
+	$(MAKE) $(MAKEOVERRIDES) -C $*/ clean
+	$(MAKE) $(MAKEOVERRIDES) -C $*/ proper
 
 .PHONY: all clean $(MMODULES)
