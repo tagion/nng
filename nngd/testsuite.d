@@ -1,3 +1,5 @@
+module nngd.testsuite;
+
 import std.stdio;
 import std.conv;
 import std.string;
@@ -14,9 +16,7 @@ import std.process: environment;
 import std.parallelism;
 
 import nngd;
-import nngtests;
-
-
+import nngd.nngtests;
 
 static string dump_exception_recursive(Throwable ex, string tag = "") {
     string[] res; 
@@ -88,14 +88,16 @@ enum nngtestflag : uint {
     SETENV  = 2
 }
 
-class NNGTest {
-        void log(A...)(string fmt, A a){
+alias runtest = string[] delegate () @trusted; 
+
+@trusted class NNGTest {
+        void log(A...)(string fmt, A a) @trusted {
             if(!(flags & nngtestflag.DEBUG) || logfile is null) return;
             logfile.writefln("%.6f "~fmt,timestamp,a);
             logfile.flush();
         }
 
-        void error(A...)(string fmt, A a){
+        void error(A...)(string fmt, A a) @trusted {
             _errors ~= format(fmt, a);
             if(!(flags & nngtestflag.DEBUG) || logfile is null) return;
             logfile.writefln("%.6f "~fmt,timestamp,a);
@@ -113,39 +115,65 @@ class NNGTest {
             }
         }
         
-        string[] run() { return []; }
+        string[] run() @trusted { return []; }
         
-        string errors(){
+        string errors() @trusted {
             return this._errors.empty() ? null :  "ERRORS: " ~  this._errors.join("\n");
         }
 
-        string[] geterrors() { return _errors; }
+        string[] geterrors() @trusted { return _errors; }
 
-        void seterrors ( string[] e ) { _errors ~= e; }
+        void seterrors ( string[] e ) @trusted { _errors ~= e; }
 
-    private:
+        File* getlogfile() { return this.logfile; } 
+
+    protected:
         
-        File *logfile;                
+        File* logfile;                
         uint flags;
         string[] _errors;
 }
 
-class NNGTestSuite : NNGTest {
+@trusted class NNGTestSuite : NNGTest {
     
-    this(Args...)(auto ref Args args) { super(args); }
+    this(Args...)(auto ref Args args) { this.todo = -1; super(args); }
     
-    override string[] run() {
+    string[] runonce( int testno ) {
+        this.todo = testno;
+        auto res = this.run();
+        this.todo = -1;
+        return res;
+    }
+
+    override string[] run() @trusted {
         string[] res = []; 
-        static foreach(i,t; nngtests.testlist){
-            mixin("auto t"~to!string(i)~" = new "~t~"(this.logfile, this.flags);");
-            mixin("auto task"~to!string(i)~" = task(&(t"~to!string(i)~".run));");
-            mixin("task"~to!string(i)~".executeInNewThread();");
+        mixin("auto pool = new TaskPool(4);");
+        static foreach(i,t; nngd.nngtests.testlist){
+           mixin(
+           "if( this.todo < 0 || this.todo == "~to!string(i)~" ) { \n" ~
+           "auto t"~to!string(i)~" = new "~t~"(this.logfile, this.flags); \n" ~
+           "this.tests[\""~to!string(i)~"\"] = cast(NNGTest*)&(t"~to!string(i)~"); \n" ~
+           "auto task"~to!string(i)~" = task(&(t"~to!string(i)~".run)); \n" ~
+           "pool.put(task"~to!string(i)~"); \n" ~
+           "} \n"
+           );
         }
-        static foreach(i,t; nngtests.testlist){
-            mixin("res ~= task"~to!string(i)~".yieldForce;");
-            mixin("this.seterrors(t"~to!string(i)~".geterrors());");
+        mixin("pool.finish(true);");
+        mixin("pool.stop;");
+        static foreach(i,t; nngd.nngtests.testlist){
+            mixin(
+            "if( this.todo < 0 || this.todo == "~to!string(i)~" ) { \n" ~
+            "this.seterrors(this.tests[\""~to!string(i)~"\"].geterrors()); \n" ~
+            "} \n"
+            );
         }
+        
+
         return res;       
     }
+
+    private:
+        int todo;
+        NNGTest*[string] tests;
 }
 

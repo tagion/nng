@@ -1,3 +1,5 @@
+module nngtestutil;
+
 import std.stdio;
 import std.format;
 import std.array;
@@ -5,7 +7,7 @@ import std.datetime.systime;
 import std.process: environment;
 import nngd;
 
-
+/*
 string nngtest_socket_properties(ref NNGSocket s, string tag){
     string res;
     res ~= format("\n----------------------- <PROPERTIES %s>\n", tag);
@@ -58,6 +60,7 @@ static double timestamp()
     auto ts = Clock.currTime().toTimeSpec();
     return ts.tv_sec + ts.tv_nsec/1e9;
 }
+*/
 
 static void log(A...)(string fmt, A a){
     auto _debug = environment.get("NNG_DEBUG");
@@ -65,6 +68,7 @@ static void log(A...)(string fmt, A a){
     writefln("%.6f "~fmt,timestamp,a);
     stdout.flush();
 }
+
 
 shared string[] _errors;
 
@@ -90,6 +94,7 @@ static int populate_state( int testno, string tag ){
     return _err;
 }
 
+/*
 static string dump_exception_recursive(Throwable ex, string tag = "") {
     string[] res; 
     res ~= format("\r\nException caught %s : %s\r\n", Clock.currTime().toSimpleString(), tag);
@@ -97,4 +102,6 @@ static string dump_exception_recursive(Throwable ex, string tag = "") {
         res ~= format("%s [%d]: %s \r\n%s\r\n", t.file, t.line, t.message(), t.info);
     }
     return join(res, "\r\n");
-}    
+} 
+*/
+

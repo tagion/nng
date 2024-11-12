@@ -87,4 +87,4 @@ clean-extern:
 proper-extern:
 	$(MAKE) proper -C extern/
 
-.PHONY: all extern mime lib clean $(TESTBENCH) testbench runtest $(DTESTS) $(RUNTESTS)
+.PHONY: all extern mime lib clean $(BINTESTBENCH) testbench runtest $(DTESTS) $(RUNTESTS)

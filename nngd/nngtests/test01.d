@@ -11,7 +11,7 @@ import nngd;
 
 const _testclass = "nngd.nngtests.nng_test01_pushpull_buffer";
 
-class nng_test01_pushpull_buffer : NNGTest {
+@trusted class nng_test01_pushpull_buffer : NNGTest {
     
     this(Args...)(auto ref Args args) { super(args); }    
 
@@ -22,6 +22,7 @@ class nng_test01_pushpull_buffer : NNGTest {
         workers ~= new Thread(&(this.sender_worker)).start();
         foreach(w; workers)
             w.join();
+        log(_testclass ~ ": Bye!");
         return [];
     }
     
