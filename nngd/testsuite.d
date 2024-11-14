@@ -83,6 +83,12 @@ static uint rot3 ( uint data ) { return ( data << 3 )&( data >> 29 ); }
 static uint mkrot3 ( uint data ) { return data ^ rot3(data); }
 static bool chkrot3 ( uint data, uint chk ) { return (chk ^ rot3(data)) == data; }
 
+static string[] __errors;
+
+static void nngtest_error(A...)(string fmt, A a) @trusted {
+    __errors ~= format(fmt, a);
+}
+
 enum nngtestflag : uint {
     DEBUG   = 1,
     SETENV  = 2
@@ -113,6 +119,10 @@ alias runtest = string[] delegate () @trusted;
                     flags |= nngtestflag.DEBUG;
                 }
             }
+        }
+        
+        auto self(){
+            return this;
         }
         
         string[] run() @trusted { return []; }
@@ -168,6 +178,9 @@ alias runtest = string[] delegate () @trusted;
             );
         }
         
+        if(!__errors.empty){
+            this.seterrors(__errors);
+        }
 
         return res;       
     }

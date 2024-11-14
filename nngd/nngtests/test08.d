@@ -32,6 +32,7 @@ string rndstr(size_t len = 32) @trusted {
 struct worker_context {
     int id;
     string name;
+    void* cptr;
 }
 
 
@@ -44,16 +45,19 @@ struct worker_context {
         this.uri = "tcp://127.0.0.1:31008";
         immutable string[] tags = ["TAG0", "TAG1", "TAG2", "TAG3"];
         try{ 
+            auto self_ = self;
+
             worker_context ctx;
             ctx.id = 1;
             ctx.name = "Context name";
+            ctx.cptr = &self_;
             
             NNGSocket s = NNGSocket(nng_socket_type.NNG_SOCKET_REP);
             s.sendtimeout = msecs(5000);
             s.recvtimeout = msecs(5000);
             s.sendbuf = 65536;
 
-            NNGPool pool = NNGPool(&s, cast(nng_pool_callback)(&(this.server_callback)), 8, &ctx, this.logfile.fileno());
+            NNGPool pool = NNGPool(&s, &this.server_callback, 8, &ctx, this.logfile.fileno());
             pool.init();
 
             auto rc = s.listen(uri);
@@ -72,6 +76,7 @@ struct worker_context {
             error(dump_exception_recursive(e, "Main: " ~ _testclass));
         }
         log(_testclass ~ ": Bye!");
+        log("Passed!");
         return [];
     }
     
@@ -82,41 +87,43 @@ struct worker_context {
         string uri;
         string tag;
 
-        void server_callback(NNGMessage *msg, void *ctx) @trusted
+        static void server_callback(NNGMessage *msg, void *ctx) @trusted
         {
             try{
-                log("SERVER CALLBACK");
+                auto cnt = cast(worker_context*)ctx;
+                auto obj = cast(nng_test08_pool*)cnt.cptr;
+
+                obj.log("SERVER CALLBACK");
                 if(msg is null){ 
-                    log("No message received");
+                    obj.log("No message received");
                     return;
                 }    
                 if(msg.length < 1){
-                    log("Empty message received");
+                    obj.log("Empty message received");
                     return;
                 }
-                auto cnt = cast(worker_context*)ctx;
                 auto s = msg.body_trim!string();
-                log("SERVER CONTEXT NAME: "~cnt.name);
-                log("SERVER GOT: " ~ s[0..min(s.length,48)]);
+                obj.log("SERVER CONTEXT NAME: "~cnt.name);
+                obj.log("SERVER GOT: " ~ s[0..min(s.length,48)]);
                 msg.clear();
                 if(indexOf(s,"What time is it?") == 0){
-                    log("Going to send time");
+                    obj.log("Going to send time");
                     msg.body_append(cast(ubyte[])(format("It`s %f o`clock." ~ " DATA: ",timestamp()) ~ rndstr(uniform(4096,32768))));
                 }else if(indexOf(s,"Swamp me!") == 0){    
                     size_t bsz = 1048576;
                     string buf = rndstr(bsz);
                     msg.length = bsz + 32;
                     msg.body_prepend(cast(ubyte[])("BIG DATA: " ~ buf));
-                    log("SERVER: BData set");
+                    obj.log("SERVER: BData set");
                 }else if(indexOf(s,"Break!") == 0){
-                    log("SERVER: Let's fool around!");
-                    log("Error condition emulated!");
+                    obj.log("SERVER: Let's fool around!");
+                    obj.log("Error condition emulated!");
                 }else{
-                    log("Going to stop sender");
+                    obj.log("Going to stop sender");
                     msg.body_append(cast(ubyte[])"END");
                 }
             } catch(Throwable e) {
-                error(dump_exception_recursive(e, "Server callback"));
+                nngtest_error(dump_exception_recursive(e, "Server callback"));
             }    
         }
 
@@ -179,9 +186,6 @@ struct worker_context {
                 error(dump_exception_recursive(e, "Client worker"));
             }    
         }
-
-
-
 
 }
 

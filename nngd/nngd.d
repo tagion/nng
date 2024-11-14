@@ -428,16 +428,30 @@ struct NNGMessage {
 } // struct NNGMessage
 
 alias nng_aio_cb = void function(void*);
+alias nng_aio_dg_cb = void delegate(void*);
 
 struct NNGAio {
-    
     private nng_aio* aio;
+    private void* pcontext;
 
     @disable this();
 
-    this(nng_aio_cb cb, void* arg) {
-        auto rc = nng_aio_alloc(&aio, cb, arg);
-        enforce(rc == 0);
+    this(T)(T cb, void* arg, void* ctx = null) {
+        pcontext = context;
+        static if(is(T == typeof(null))){
+            auto rc = nng_aio_alloc(&aio, null, null);
+            enforce(rc == 0);
+        } else 
+        static if(is(T == nng_aio_dg_cb)){
+            auto rc = nng_aio_alloc(&aio, cb.funcptr, arg);
+            enforce(rc == 0);
+        } else 
+        static if(is(T == nng_aio_cb)){           
+            auto rc = nng_aio_alloc(&aio, cb, arg);
+            enforce(rc == 0);
+        } else
+            assert(false, "Invalid callback type");
+
     }
 
     this(nng_aio* src) {
@@ -447,14 +461,26 @@ struct NNGAio {
 
     ~this() {
         nng_aio_free(aio);
+        context = null;
     }
 
-    void realloc(nng_aio_cb cb, void* arg) {
+    void realloc(T)(T cb, void* arg, void* ctx = null) {
         nng_aio_free(aio);
-        auto rc = nng_aio_alloc(&aio, cb, arg);
-        enforce(rc == 0);
+        pcontext = ctx;
+        static if(is(T == typeof(null))){   
+            auto rc = nng_aio_alloc(&aio, null, null);
+            enforce(rc == 0);
+        } else
+        static if(isDelegate!T){
+            auto func = cb.funcptr;
+            auto rc = nng_aio_alloc(&aio, func, arg);
+            enforce(rc == 0);
+        } else {          
+            auto rc = nng_aio_alloc(&aio, cb, arg);
+            enforce(rc == 0);
+        } 
     }
-
+    
     // ---------- pointer prop
 
     // it is just a getter in pair to setter, not needed really, may be removed
@@ -474,6 +500,16 @@ struct NNGAio {
             nng_aio_free(aio);
             nng_aio_alloc(&aio, null, null);
         }
+    }
+
+    @nogc @safe 
+    @property void* context() pure nothrow {
+        return pcontext;
+    }    
+
+    @nogc
+    @property void context(void* p){
+        pcontext = p;
     }
 
     // ---------- status prop
