@@ -57,24 +57,25 @@ struct worker_context {
             s.recvtimeout = msecs(5000);
             s.sendbuf = 65536;
 
-            NNGPool pool = NNGPool(&s, &this.server_callback, 8, &ctx, this.logfile.fileno());
+            NNGPool pool = NNGPool(&s, &this.server_callback, 8, &ctx, this.logfile);
             pool.init();
 
             auto rc = s.listen(uri);
             enforce(rc == 0);
 
             foreach(t; tags){
-                this.tag = t;
+                this.localtag = t.dup;
                 workers ~= new Thread(&(this.client_worker)).start();
-                Thread.sleep(msecs(100));
+                Thread.sleep(msecs(10));
             }
             foreach(w; workers)
                 w.join();
-            log("PLANNING SHUTDOWN");
+            Thread.sleep(msecs(100));
             pool.shutdown();
         } catch(Throwable e) {
             error(dump_exception_recursive(e, "Main: " ~ _testclass));
         }
+        log("post d1");
         log(_testclass ~ ": Bye!");
         log("Passed!");
         return [];
@@ -85,7 +86,7 @@ struct worker_context {
         
         Thread[] workers;
         string uri;
-        string tag;
+        string localtag;
 
         static void server_callback(NNGMessage *msg, void *ctx) @trusted
         {
@@ -134,6 +135,8 @@ struct worker_context {
             const NMSGS = 32;
             try{
                 int rc;
+                string tag = this.localtag.dup;
+                Thread.sleep(msecs(100));
                 string line, str;
                 int k = 0;
                 NNGSocket s = NNGSocket(nng_socket_type.NNG_SOCKET_REQ);
